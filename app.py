@@ -94,3 +94,4 @@ if prompt := st.chat_input("Posez votre question sur la conformité textile...")
         st.markdown(answer)
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
+    
