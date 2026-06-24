@@ -1,4 +1,4 @@
-TextilBot (Assistant de Conformité Réglementaire Textile)
+**TextilBot (Assistant de Conformité Réglementaire Textile)**
 
 TextilBot est un assistant conversationnel basé sur RAG (Retrieval-Augmented Generation)
 qui répond aux questions sur la conformité réglementaire textile selon le règlement EU 1007/2011.
