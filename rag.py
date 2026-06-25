@@ -14,7 +14,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-model = SentenceTransformer("BAAI/bge-m3", local_files_only=True)
+model = SentenceTransformer("BAAI/bge-m3")
 genai.configure(api_key=GEMINI_API_KEY)
 gemini = genai.GenerativeModel("gemini-2.5-flash")
 
