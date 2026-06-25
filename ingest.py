@@ -7,7 +7,8 @@ from qdrant_client.models import Distance, VectorParams, PointStruct
 from tqdm import tqdm
 
 load_dotenv()
-
+QDRANT_URL = os.getenv("QDRANT_URL")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 
 COLLECTION_NAME = os.getenv("COLLECTION_NAME")
 
@@ -60,7 +61,7 @@ if __name__ == "__main__":
         embeddings.extend(emb)
 
     print("⏳ Connexion à Qdrant...")
-    client = QdrantClient(path="./qdrant_storage")
+    client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
     existing = [c.name for c in client.get_collections().collections]
     if COLLECTION_NAME in existing:

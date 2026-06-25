@@ -2,24 +2,45 @@ import os
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
-from groq import Groq
+import google.generativeai as genai
+from langdetect import detect, DetectorFactory
+
+DetectorFactory.seed = 0
 
 load_dotenv()
 
 COLLECTION_NAME = os.getenv("COLLECTION_NAME")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+QDRANT_URL = os.getenv("QDRANT_URL")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 model = SentenceTransformer("BAAI/bge-m3", local_files_only=True)
-qdrant = QdrantClient(path="./qdrant_storage")
-groq_client = Groq(api_key=GROQ_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
+gemini = genai.GenerativeModel("gemini-2.5-flash")
+
+GREETINGS = {
+    "hi", "hello", "hey", "yo", "good morning", "good evening",
+    "bonjour", "salut", "coucou", "bonsoir", "hello there"
+}
+
+
+def detect_language(text: str) -> str:
+    english_greetings = {"hi", "hello", "hey", "yo", "good morning", "good evening", "hello there"}
+    if text.strip().lower() in english_greetings:
+        return "en"
+    try:
+        lang = detect(text)
+        return "en" if lang == "en" else "fr"
+    except Exception:
+        return "fr"
 
 
 def retrieve(question, top_k=5):
     embedding = model.encode(question, normalize_embeddings=True)
     results = qdrant.query_points(
-    collection_name=COLLECTION_NAME,
-    query=embedding.tolist(),
-    limit=top_k
+        collection_name=COLLECTION_NAME,
+        query=embedding.tolist(),
+        limit=top_k
     ).points
     return [
         {"text": r.payload["text"], "source": r.payload["source"], "score": r.score}
@@ -27,42 +48,47 @@ def retrieve(question, top_k=5):
     ]
 
 
-def generate_answer(question, chunks):
+def generate_answer(question, chunks, lang_tag="FRENCH"):
     context = ""
     for chunk in chunks:
         context += f"[Source: {chunk['source']}]\n{chunk['text']}\n\n"
 
-    system_prompt = """Tu es TextilBot, un assistant expert en conformité réglementaire textile.
+    prompt = f"""Tu es TextilBot, un assistant expert en conformité réglementaire textile.
 Tu réponds aux questions sur les normes textiles en te basant uniquement sur les documents fournis.
-Règles :
-- Réponds en français
-- Cite toujours la source
-- Si l'information n'est pas dans le contexte, dis-le clairement
-- Sois précis et professionnel"""
 
-    user_prompt = f"""Contexte documentaire :
+RÈGLE ABSOLUE : Tu dois répondre entièrement en {lang_tag}. Ne mélange pas les langues.
+
+Règles :
+- Cite toujours la source (article ou annexe)
+- Si la question n'est pas liée aux textiles, réponds poliment en une phrase courte
+- Sois précis et professionnel
+
+Contexte documentaire :
 {context}
 
 Question : {question}
 
-Réponds de manière précise en citant les sources."""
+Réponds en {lang_tag} en citant les sources."""
 
-    response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=0.1,
-        max_tokens=1024
-    )
-    return response.choices[0].message.content
+    response = gemini.generate_content(prompt)
+    return response.text
 
 
 def ask_textilbot(question, top_k=5):
+    normalized = question.strip().lower()
+    if normalized in GREETINGS:
+        lang = detect_language(question)
+        if lang == "en":
+            return "Hi! Ask me anything about textile labeling compliance under EU 1007/2011."
+        return "Bonjour ! Posez-moi une question sur la conformité textile (étiquetage, fibres, EU 1007/2011)."
+
+    lang = detect_language(question)
+    lang_tag = "ENGLISH" if lang == "en" else "FRENCH"
+
     chunks = retrieve(question, top_k=top_k)
-    answer = generate_answer(question, chunks)
+    answer = generate_answer(question, chunks, lang_tag=lang_tag)
     return answer
+
 
 if __name__ == "__main__":
     question = "Which textile products are exempt from mandatory fibre labelling?"
