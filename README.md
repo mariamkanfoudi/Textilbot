@@ -15,6 +15,7 @@ L'application est accessible en ligne :
 ```
 PDF (EU 1007/2011) → Chunks → BAAI/bge-m3 → Qdrant Cloud
 
+
                                                     ↓
 Question → BAAI/bge-m3 → Retrieval → Gemini 2.5 Flash → Réponse
 ```
